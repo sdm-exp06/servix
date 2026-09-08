@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus — Todo App</title>
+    
+    <link rel="icon" type="image/png" href="/favicon.jpg">
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- External images, useful for testing your HTTP server -->
+    <link rel="preconnect" href="https://images.unsplash.com">
+</head>
+
+<body>
+
+    <div class="app">
+
+        <aside class="sidebar">
+
+            <div class="logo">
+                <div class="logo-icon">✓</div>
+                <div>
+                    <h2>Focus</h2>
+                    <span>Todo workspace</span>
+                </div>
+            </div>
+
+            <nav>
+                <button class="nav-item active" data-filter="all">
+                    <span>◉ All tasks</span>
+                    <strong id="allCount">0</strong>
+                </button>
+
+                <button class="nav-item" data-filter="today">
+                    <span>☀ Today</span>
+                    <strong id="todayCount">0</strong>
+                </button>
+
+                <button class="nav-item" data-filter="upcoming">
+                    <span>◷ Upcoming</span>
+                    <strong id="upcomingCount">0</strong>
+                </button>
+
+                <button class="nav-item" data-filter="completed">
+                    <span>✓ Completed</span>
+                    <strong id="completedCount">0</strong>
+                </button>
+            </nav>
+
+            <div class="sidebar-divider"></div>
+
+            <div class="sidebar-title">PRIORITY</div>
+
+            <button class="priority-filter" data-priority="high">
+                <span class="priority-dot high"></span>
+                High priority
+            </button>
+
+            <button class="priority-filter" data-priority="medium">
+                <span class="priority-dot medium"></span>
+                Medium priority
+            </button>
+
+            <button class="priority-filter" data-priority="low">
+                <span class="priority-dot low"></span>
+                Low priority
+            </button>
+
+            <div class="sidebar-bottom">
+
+                <div class="progress-card">
+                    <div class="progress-header">
+                        <span>Progress</span>
+                        <strong id="progressPercent">0%</strong>
+                    </div>
+
+                    <div class="progress">
+                        <div id="progressBar"></div>
+                    </div>
+
+                    <small id="progressText">
+                        0 of 0 completed
+                    </small>
+                </div>
+
+                <button id="themeButton" class="theme-button">
+                    ☾ &nbsp; Toggle theme
+                </button>
+
+            </div>
+
+        </aside>
+
+
+        <main class="main">
+
+            <header class="header">
+
+                <div>
+                    <p class="date" id="date"></p>
+                    <h1>Good day 👋</h1>
+                    <p class="subtitle">
+                        Let's make today productive.
+                    </p>
+                </div>
+
+                <div class="header-actions">
+
+                    <div class="search-box">
+                        <span>⌕</span>
+                        <input
+                            id="search"
+                            type="search"
+                            placeholder="Search tasks..."
+                        >
+                        <kbd>/</kbd>
+                    </div>
+
+                    <button class="profile">
+                        F
+                    </button>
+
+                </div>
+
+            </header>
+
+
+            <section class="hero">
+
+                <div class="hero-content">
+
+                    <span class="hero-label">
+                        TODAY'S FOCUS
+                    </span>
+
+                    <h2 id="heroTitle">
+                        Make today count.
+                    </h2>
+
+                    <p id="heroDescription">
+                        Small steps become big results.
+                    </p>
+
+                </div>
+
+                <div class="completion-ring" id="completionRing">
+                    <span id="completionPercent">0%</span>
+                </div>
+
+            </section>
+
+
+            <div class="toolbar">
+
+                <div class="tabs">
+
+                    <button class="tab active" data-view="all">
+                        All
+                    </button>
+
+                    <button class="tab" data-view="active">
+                        Active
+                    </button>
+
+                    <button class="tab" data-view="completed">
+                        Done
+                    </button>
+
+                </div>
+
+                <button id="sortButton" class="sort">
+                    ↕ <span id="sortText">Newest</span>
+                </button>
+
+            </div>
+
+
+            <section id="taskList" class="task-list"></section>
+
+
+            <section id="emptyState" class="empty hidden">
+
+                <div class="empty-icon">
+                    ✦
+                </div>
+
+                <h2>No tasks found</h2>
+
+                <p>
+                    Create a task and start making progress.
+                </p>
+
+                <button id="emptyAdd" class="primary-button">
+                    + Add task
+                </button>
+
+            </section>
+
+        </main>
+
+    </div>
+
+
+    <button id="addButton" class="floating-button">
+        +
+    </button>
+
+
+    <dialog id="taskDialog">
+
+        <form id="taskForm" class="modal">
+
+            <div class="modal-header">
+
+                <div>
+                    <span class="modal-label">TASK</span>
+                    <h2 id="modalTitle">
+                        Create task
+                    </h2>
+                </div>
+
+                <button
+                    type="button"
+                    id="closeModal"
+                    class="close-button"
+                >
+                    ×
+                </button>
+
+            </div>
+
+            <input type="hidden" id="taskId">
+
+            <label>
+                Task name
+
+                <input
+                    id="taskTitle"
+                    type="text"
+                    maxlength="120"
+                    placeholder="What needs to be done?"
+                    required
+                >
+            </label>
+
+            <label>
+                Description
+
+                <textarea
+                    id="taskDescription"
+                    maxlength="500"
+                    placeholder="Add some details..."
+                ></textarea>
+            </label>
+
+            <div class="form-row">
+
+                <label>
+                    Priority
+
+                    <select id="taskPriority">
+
+                        <option value="high">
+                            High
+                        </option>
+
+                        <option value="medium" selected>
+                            Medium
+                        </option>
+
+                        <option value="low">
+                            Low
+                        </option>
+
+                    </select>
+                </label>
+
+                <label>
+                    Due date
+
+                    <input
+                        id="taskDue"
+                        type="date"
+                    >
+                </label>
+
+            </div>
+
+            <label>
+                Category
+
+                <input
+                    id="taskCategory"
+                    type="text"
+                    maxlength="30"
+                    placeholder="Work, Personal, Study..."
+                >
+            </label>
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    id="cancelModal"
+                    class="secondary-button"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    Save task
+                </button>
+
+            </div>
+
+        </form>
+
+    </dialog>
+
+
+    <div id="toast" class="toast"></div>
+
+
+    <script src="script.js"></script>
+
+</body>
+</html>
