@@ -22,14 +22,14 @@ extern int h_errno;
 
 // #define TABLE_SIZE 60
 
-
 int main(void)
 {
-    struct http_request_header* http_request_table[TABLE_SIZE];
+    struct http_request_header *http_request_table[TABLE_SIZE];
 
     int http_response_status;
     struct winsize ws;
-    if(ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) == -1){
+    if (ioctl(STDIN_FILENO, TIOCGWINSZ, &ws) == -1)
+    {
         fprintf(stderr, "ioctl: %s\n", strerror(errno));
     }
 
@@ -65,7 +65,7 @@ int main(void)
     }
 
     rp = result;
-    
+
     optval = 1;
 
     for (rp = result; rp != NULL; rp = rp->ai_next)
@@ -73,7 +73,8 @@ int main(void)
         sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (sfd == -1)
             continue;
-        if(setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1){
+        if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1)
+        {
             fprintf(stderr, "\033[1;4;31;0m%s", strerror(errno));
         }
 
@@ -115,31 +116,51 @@ int main(void)
         len = sizeof(struct sockaddr_storage);
         cfd = accept(sfd, (struct sockaddr *)&client_addr, &len);
         if (cfd == -1)
-            {
-                fprintf(stderr, "\033[1;4;31;0mfailed while accepting connexion\n");
-                continue;
-            }
+        {
+            fprintf(stderr, "\033[1;4;31;0mfailed while accepting connexion\n");
+            continue;
+        }
 
         s = getnameinfo((struct sockaddr *)&client_addr, len, host, NI_MAXHOST, service, NI_MAXSERV, 0);
-        if(s != 0){
+        if (s != 0)
+        {
             fprintf(stderr, "\033[1;4;31;0mgetnameinfo: %s\n", gai_strerror(h_errno));
         }
 
         printf("accepting connection from \033[1;32;4m%s:\033[1;34;4m%s\033[0m\n", host, service);
 
-        if(!(read(cfd, request_buf, REQUEST_BUF_SIZE) > 0)){
-            fprintf(stderr, "read: %s\n", strerror(errno));
-        }
-        print_to_center("REQUEST", &ws);
-          
-       printf("%s\n", request_buf); 
-        
-        
-        http_response_status = handle_response(cfd, &http_request_statusline, request_buf, http_request_table);
-        
-        if(http_response_status == -1)
-            return -1;
-        
+        for(;;){
+            memset(request_buf,0, REQUEST_BUF_SIZE);
+            errno = 0;
+            ssize_t bytesRead;
+            printf("startwars\n");
+
+
+            if(((bytesRead = read(cfd, request_buf, REQUEST_BUF_SIZE))  > 0 ))
+            {
+                fprintf(stderr, "reader: %s\n", strerror(errno));
+            }
+            
+            printf("end end end end end\n");
+            if(bytesRead <= 0){
+                printf("read: %ld\n", bytesRead);
+                
+                close(cfd);
+                break;
+            }
+
+            print_to_center("REQUEST", &ws);
+
+            printf("%s\n", request_buf);
+            http_response_status = handle_response(cfd, &http_request_statusline, request_buf, http_request_table);
+            printf("sssssssss\n");
+            printf("code = %dd\n", http_response_status);
+            if(http_response_status == -1){
+                close(cfd);
+                break;
+            }
+       }
+
         close(cfd);
     }
 

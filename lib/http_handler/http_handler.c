@@ -18,7 +18,8 @@ enum fileType{
     text, 
     image,
     video,
-    audio
+    audio,
+    unknown
 };
 
 static int write_http_response_header(int cfd, struct stat* fileProperties, char *path){
@@ -40,7 +41,7 @@ static int write_http_response_header(int cfd, struct stat* fileProperties, char
     printf("filetype: %s\n", file_type_str);
     
     printf("start\n");
-
+    file_type = unknown;
     if(strcmp(file_type_str, "html") == 0 || strcmp(file_type_str, "css") == 0 || strcmp(file_type_str, "js") == 0)
         file_type = text;
 
@@ -53,19 +54,22 @@ static int write_http_response_header(int cfd, struct stat* fileProperties, char
     else if(strcmp(file_type_str, "mp3") == 0 || strcmp(file_type_str, "wav") == 0 || strcmp(file_type_str, "ogg") == 0 || strcmp(file_type_str, "aac") == 0)
         file_type = audio;
     
-      
+      if(file_type == unknown)
+        return 0;
+    
     snprintf(http_response_header_buffer, HTTP_RESPONSE_HEADER_BUFFER_SIZE, 
-        "Content-Type: %s/%s\r\n"
+        "Content-Type: %s/%s; charset=utf-8\r\n"
         "Content-Length: %ld\r\n"
-        "Date: %s\r\n\r\n",
+        "Date: %s\r\n"
+        "Connection: keep-alive\r\n\r\n",
         (file_type == text ? "text" : file_type == image ? "image" : file_type == video ? "video" : "audio"),
-         strcmp(file_type_str, "mp3") == 0 ? "mpeg" : file_type_str, fileProperties->st_size,
+         strcmp(file_type_str, "mp3") == 0 ? "mpeg" : file_type_str,fileProperties->st_size,
             date_format
         );
 
     printf("type = %d/%s\n", file_type, file_type_str);
 
-    if(write(cfd, http_response_header_buffer, strlen(http_response_header_buffer)) != (size_t)strlen(http_response_header_buffer)){
+    if(write(cfd, http_response_header_buffer, strlen(http_response_header_buffer)) != (ssize_t)strlen(http_response_header_buffer)){
         fprintf(stderr, "write: %s\n", strerror(errno));
         return -1;
     }
@@ -87,15 +91,15 @@ int write_http_response_body(int cfd, struct stat* fileProperties, char *path){
     
     if((read(file_fd, response_body, fileProperties->st_size)) == -1)
     {
-        fprintf(stderr, "read: %s\n", strerror(errno));
+        fprintf(stderr, "readING: %s\n", strerror(errno));
         return -1;
     }
-    
+
     if(write(cfd, response_body, fileProperties->st_size) == -1){
         fprintf(stderr, "write: %s\n", strerror(errno));
         return -1;
     }
-    
+    printf("written\n");
     return 0;
 }
 
@@ -104,7 +108,6 @@ int handle_response(int cfd, struct HTTP_REQUEST_STATUSLINE* http_request_status
     int parser_status = http_parser(request_str, http_request_statusline, http_request_table);
 
     if(parser_status != 0){
-        fprintf(stderr, "error while parsing\n");
         return -1;
     }
 
@@ -203,6 +206,5 @@ int http_get_handler(int cfd, char* request_path){
         return -1;
     if(write_http_response_body(cfd, &statBuf, !(code == Not_Found) ? path : "www/404.html") == -1)
         return -1;
-    
     return 0;
 }

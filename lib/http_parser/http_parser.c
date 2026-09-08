@@ -51,6 +51,7 @@ struct http_request_header* table_lookup(const char* field_name, struct http_req
 
 
 int http_parser(const char *request_str, struct HTTP_REQUEST_STATUSLINE* http_request, struct http_request_header* http_request_table[]){
+    printf("REQUESTING: %s\n", request_str);
     (void)http_request;
     const char* end_startline = strstr(request_str, "\r\n");
     if(!end_startline){
