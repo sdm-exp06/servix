@@ -10,6 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <sys/wait.h>
 #include "utils.h"
 #include "http_handler.h"
 #include "http_parser.h"
@@ -21,9 +22,20 @@
 extern int h_errno;
 
 // #define TABLE_SIZE 60
+static volatile int worker = 0;
+void zombieProcessHandler(int sig)
+{
+    (void)sig;
+    while ((waitpid(-1, NULL, WNOHANG)) > 0)
+    {
+           printf("executing zeombie process handler: worker: %d\n", worker);
+           worker--;
+    }
+}
 
 int main(void)
 {
+
     struct http_request_header *http_request_table[TABLE_SIZE];
 
     int http_response_status;
@@ -109,8 +121,25 @@ int main(void)
 
     printf("listening on: \033[1;32;4m%s:\033[1;34;4m%s\033[0m\n", host, service);
 
-    // iterative function that handle one connection at a time
+    // concurrent function that handle one connection at a time
+    int numConnection = 0;
+    sigset_t blocked_set, empty_set;
+    struct sigaction sa;
 
+    
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_handler = zombieProcessHandler;
+
+    if(sigaction(SIGCLD, &sa, NULL) == -1){
+        fprintf(stderr, "sigaction: %s\n", strerror(errno));
+        exit(0);
+    }
+    sigemptyset(&empty_set);
+    sigemptyset(&blocked_set);
+    sigaddset(&blocked_set, SIGCLD);
+
+    
     for (;;)
     {
         len = sizeof(struct sockaddr_storage);
@@ -129,40 +158,80 @@ int main(void)
 
         printf("accepting connection from \033[1;32;4m%s:\033[1;34;4m%s\033[0m\n", host, service);
 
-        for(;;){
-            memset(request_buf,0, REQUEST_BUF_SIZE);
-            errno = 0;
-            ssize_t bytesRead;
-            printf("startwars\n");
-
-
-            if(((bytesRead = read(cfd, request_buf, REQUEST_BUF_SIZE))  > 0 ))
+        // craete a separate process to handle connected file descriptor
+        if(sigprocmask(SIG_BLOCK, &empty_set, NULL) == -1){
+            fprintf(stderr, "sigprocmask: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        print_to_center("FORKING\n", &ws);
+        switch (fork())
+        {
+        case -1:
+            fprintf(stderr, "FORK: (%s)\n", strerror(errno));
+            exit(EXIT_FAILURE);
+            break;
+        case 0:
+            for (;;)
             {
-                fprintf(stderr, "reader: %s\n", strerror(errno));
+                memset(request_buf, 0, REQUEST_BUF_SIZE);
+                errno = 0;
+                ssize_t bytesRead;
+                printf("startwars\n");
+
+                bytesRead = read(cfd, request_buf, REQUEST_BUF_SIZE);
+
+                printf("end end end end end\n");
+                if (bytesRead <= 0)
+                {
+                    printf("read: %ld\n", bytesRead);
+                    close(cfd);
+                    exit(0);
+                    break;
+                }
+
+                print_to_center("REQUEST", &ws);
+
+                printf("%s\n", request_buf);
+                http_response_status = handle_response(cfd, &http_request_statusline, request_buf, http_request_table);
+                printf("sssssssss\n");
+                printf("code = %dd\n", http_response_status);
+                if (http_response_status == -1)
+                {
+                    close(cfd);
+                    exit(0);
+                    break;
+                }
             }
+
+            close(cfd);
             
-            printf("end end end end end\n");
-            if(bytesRead <= 0){
-                printf("read: %ld\n", bytesRead);
-                
-                close(cfd);
-                break;
-            }
+            break;
+        default:
+        // DEBLOQUE 
+            close(cfd);
+            break;
+        }
 
-            print_to_center("REQUEST", &ws);
+        // parent SI IL N A PAS TERMINER IL VA DEVENIR ZOMBIE DONC LORSQUE UNE ATREU CONNECTION TERMINER IL VA LE TUER AVEC WAITPID
+        worker++;
+        // if(sigprocmask(SIG_BLOCK, &empty_set, NULL) == -1){
+        //     fprintf(stderr, "sigprocmask: %s\n", strerror(errno));
+        //     exit(EXIT_FAILURE);
+        // }
 
-            printf("%s\n", request_buf);
-            http_response_status = handle_response(cfd, &http_request_statusline, request_buf, http_request_table);
-            printf("sssssssss\n");
-            printf("code = %dd\n", http_response_status);
-            if(http_response_status == -1){
-                close(cfd);
-                break;
-            }
-       }
-
-        close(cfd);
+        printf("WORKER: %d\n", worker);
     }
 
+    int sigCnt = 0;
+    while (worker > 0)
+    {
+        if(sigsuspend(&empty_set) == -1 && errno == EINTR){
+            fprintf(stderr, "sigsuspend: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        sigCnt++;
+    }
+    
+    printf("killed %d zombies process\n", sigCnt);
     return 0;
 }

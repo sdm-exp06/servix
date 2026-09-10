@@ -13,7 +13,7 @@
 
 #define STATUS_LINE_BUFFER_SIZE 512
 #define HTTP_RESPONSE_HEADER_BUFFER_SIZE 4096
-
+#define TIMEOUT_VALUE 1
 enum fileType{
     text, 
     image,
@@ -61,11 +61,13 @@ static int write_http_response_header(int cfd, struct stat* fileProperties, char
         "Content-Type: %s/%s; charset=utf-8\r\n"
         "Content-Length: %ld\r\n"
         "Date: %s\r\n"
-        "Connection: keep-alive\r\n\r\n",
+        "Connection: keep-alive\r\n"
+        "Keep-Alive: timeout=5, max=2\r\n\r\n",
         (file_type == text ? "text" : file_type == image ? "image" : file_type == video ? "video" : "audio"),
          strcmp(file_type_str, "mp3") == 0 ? "mpeg" : file_type_str,fileProperties->st_size,
-            date_format
-        );
+            date_format,
+            TIMEOUT_VALUE
+        ); 
 
     printf("type = %d/%s\n", file_type, file_type_str);
 
